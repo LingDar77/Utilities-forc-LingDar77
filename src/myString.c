@@ -457,35 +457,3 @@ int count(String *target, char c)
     }
     return cnt;
 }
-
-//for test
-/*
-int main(int argc, char const *argv[])
-{
-    String *s1 = makeString("ads");
-    String *s2 = makeString("dss");
-    addChar(s1, 'a');
-    //delString(s2);
-    removeChar(s1, 'd');
-    removeCharByIndex(s1, 1);
-    addString(s1, s2);
-    String *s3 = cutString(s1, 1, 3);
-    //printf("%s %d\n", StringToCString(s3), s3->length);
-    //printf("%d\n", cmpString(makeString("add"), s3));
-
-    String *s4 = makeString("dasfsdfdwd");
-    String *s5 = makeString("dw");
-    //printf("%s\n",StringToCString(s4));
-    String *s6 = makeString("qqq");
-    char * buf1 = StringToCString(insertString(s4, s6, 1));
-    printf("%s\n", buf1);
-
-    delString(s1);
-    delString(s2);
-    delString(s3);
-    delString(s4);
-    delString(s5);
-    delString(s6);
-    return 0;
-}
-*/
