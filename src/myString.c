@@ -8,12 +8,20 @@
 String *makeString(const char *s)
 {
     char *iterator = s;
-    Node *pre = NULL;
-    Node *beg = NULL;
+    sNode *pre = NULL;
+    sNode *beg = NULL;
     int len = strlen(s);
+    if (*s == '\0')
+    {
+        String *buffer = malloc(sizeof(String));
+        buffer->length = -1;
+        buffer->beg = NULL;
+        buffer->end = NULL;
+        return buffer;
+    }
     while (*s != '\0')
     {
-        Node *buf = malloc(sizeof(Node));
+        sNode *buf = malloc(sizeof(sNode));
         if (beg == NULL)
         {
             buf->pre = NULL;
@@ -50,9 +58,9 @@ String *cpyString(const String *s)
 String *refString(const String *s, const unsigned beg, const unsigned end)
 {
     String *buf = malloc(sizeof(String));
-    Node *iterator = s->beg;
+    sNode *iterator = s->beg;
     unsigned cnt = 0;
-    Node *Begin = NULL, *End = NULL;
+    sNode *Begin = NULL, *End = NULL;
     while (cnt < s->length)
     {
         if (cnt == beg)
@@ -79,7 +87,7 @@ const char getCharFromString(String *s, unsigned index)
 {
     if (index >= s->length)
         return NULL;
-    Node *literater = s->beg;
+    sNode *literater = s->beg;
     int cnt = 0;
     while (literater && literater != s->end->next)
     {
@@ -91,9 +99,11 @@ const char getCharFromString(String *s, unsigned index)
 }
 char *cStr(String *s)
 {
+    if (s->length <= 0)
+        return ('\0');
     //printf("%d\n", s->length);
     char *buff = malloc(sizeof(char) * (s->length + 1));
-    Node *literator = s->beg;
+    sNode *literator = s->beg;
     buff[s->length] = '\0';
     unsigned cnt = 0;
     while (cnt < s->length)
@@ -129,14 +139,13 @@ String *addChar(String *target, const char c)
 {
     if (target->length <= 0)
     {
-        Node *buf = malloc(sizeof(Node));
+        sNode *buf = malloc(sizeof(sNode));
         buf->val = c;
         target->beg = buf;
-        target->end = buf;
         target->length = 1;
         return target;
     }
-    Node *buf = malloc(sizeof(Node));
+    sNode *buf = malloc(sizeof(sNode));
     buf->val = c;
     ++target->length;
     buf->pre = target->end;
@@ -146,12 +155,12 @@ String *addChar(String *target, const char c)
 }
 void delString(String *s)
 {
-    Node *iterator = s->beg;
-    if (s->end->next)
+    sNode *iterator = s->beg;
+    if (s->end && s->end->next)
         s->end->next->pre = NULL;
-    while (iterator && iterator != s->end->next)
+    while (iterator && s->end && iterator != s->end->next)
     {
-        Node *buf = iterator->next;
+        sNode *buf = iterator->next;
         free(iterator);
         iterator = buf;
     }
@@ -159,13 +168,13 @@ void delString(String *s)
 }
 String *removeChar(String *source, const char target)
 {
-    Node *literator = source->beg;
+    sNode *literator = source->beg;
     while (literator && literator != source->end->next)
     {
         if (literator->val == target)
         {
-            Node *pre = literator->pre;
-            Node *next = literator->next;
+            sNode *pre = literator->pre;
+            sNode *next = literator->next;
             pre->next = next;
             next->pre = pre;
             --source->length;
@@ -178,11 +187,11 @@ String *removeChar(String *source, const char target)
 }
 String *removeCharByIndex(String *source, const unsigned index)
 {
-    Node *literator = source->beg;
+    sNode *literator = source->beg;
     for (int i = 0; i < index; ++i)
         literator = literator->next;
-    Node *pre = literator->pre;
-    Node *next = literator->next;
+    sNode *pre = literator->pre;
+    sNode *next = literator->next;
     pre->next = next;
     next->pre = pre;
     --source->length;
@@ -191,14 +200,14 @@ String *removeCharByIndex(String *source, const unsigned index)
 }
 String *insertChar(String *target, const char c, unsigned index)
 {
-    Node *buf = malloc(sizeof(Node));
+    sNode *buf = malloc(sizeof(sNode));
     buf->val = c;
-    Node *literator = target->beg;
+    sNode *literator = target->beg;
     for (int i = 0; literator && i < index; ++i)
     {
         literator = literator->next;
     }
-    Node *Next = literator->next;
+    sNode *Next = literator->next;
     literator->next = buf;
     buf->pre = literator;
     buf->next = Next;
@@ -210,12 +219,12 @@ String *insertStringByIndex(String *target, String *s, unsigned index)
 {
     String *buf = cpyString(s);
     printf("%s\n", cStr(buf));
-    Node *literator = target->beg;
+    sNode *literator = target->beg;
     for (int i = 0; i < index; ++i)
     {
         literator = literator->next;
     }
-    Node *Next = literator->next;
+    sNode *Next = literator->next;
     literator->next = buf->beg;
     buf->beg->pre = literator;
     buf->end->next = Next;
@@ -231,9 +240,9 @@ String *swapChar(String *target, const unsigned index1, const unsigned index2)
     if (index1 > index2)
         i2 = index1, i1 = index2;
     i1 = index1, i2 = index2;
-    Node *literator = target->beg;
+    sNode *literator = target->beg;
     unsigned cnt = 0;
-    Node *lli = NULL, *rli = NULL;
+    sNode *lli = NULL, *rli = NULL;
     while (literator)
     {
         if (i1 == cnt)
@@ -253,18 +262,18 @@ String *swapChar(String *target, const unsigned index1, const unsigned index2)
 String *cutString(String *target, const unsigned beg, const unsigned end)
 {
     String *buffer = cpyString(target);
-    Node *Begin = buffer->beg;
-    Node *End = buffer->end;
+    sNode *Begin = buffer->beg;
+    sNode *End = buffer->end;
     for (int i = 0; i < beg; ++i)
     {
-        Node *Next = Begin->next;
+        sNode *Next = Begin->next;
         free(Begin);
         Begin = Next;
     }
     buffer->beg = Begin;
     for (int i = target->length - 1; i > end; --i)
     {
-        Node *Pre = End->pre;
+        sNode *Pre = End->pre;
         free(End);
         End = Pre;
     }
@@ -287,8 +296,8 @@ unsigned cmpString(String *lhs, String *rhs)
     if (lhs->length != rhs->length)
         return 0;
 
-    Node *lBeg = lhs->beg;
-    Node *rBeg = rhs->beg;
+    sNode *lBeg = lhs->beg;
+    sNode *rBeg = rhs->beg;
 
     while (lBeg && rBeg && lBeg != lhs->end->next)
     {
@@ -317,8 +326,8 @@ const unsigned findString(String *source, String *target)
 String *merge(String *lhs, String *rhs)
 {
     String *buffer = malloc(sizeof(String));
-    Node *lli = lhs->beg;
-    Node *rli = rhs->beg;
+    sNode *lli = lhs->beg;
+    sNode *rli = rhs->beg;
 
     while (lli != lhs->end->next && rli != rhs->end->next)
     {
@@ -360,13 +369,13 @@ String *mergeSort(String *target)
 String *bubbleSort(String *target)
 {
     String *buffer = cpyString(target);
-    Node *Begin = buffer->beg;
-    Node *End = buffer->end;
+    sNode *Begin = buffer->beg;
+    sNode *End = buffer->end;
     if (target->length % 2 == 1)
     {
         while (Begin != End)
         {
-            for (Node *cmp = Begin->next; cmp != buffer->end; cmp = cmp->next)
+            for (sNode *cmp = Begin->next; cmp != buffer->end; cmp = cmp->next)
             {
                 if (Begin->val > cmp->val)
                 {
@@ -376,7 +385,7 @@ String *bubbleSort(String *target)
                 }
             }
             Begin = Begin->next;
-            for (Node *cmp = End->pre; cmp != buffer->beg; cmp = cmp->pre)
+            for (sNode *cmp = End->pre; cmp != buffer->beg; cmp = cmp->pre)
             {
                 if (End->val < cmp->val)
                 {
@@ -392,7 +401,7 @@ String *bubbleSort(String *target)
     {
         while (Begin->next != End)
         {
-            for (Node *cmp = Begin->next; cmp != buffer->end; cmp = cmp->next)
+            for (sNode *cmp = Begin->next; cmp != buffer->end; cmp = cmp->next)
             {
                 if (Begin->val > cmp->val)
                 {
@@ -402,7 +411,7 @@ String *bubbleSort(String *target)
                 }
             }
             Begin = Begin->next;
-            for (Node *cmp = End->pre; cmp != buffer->beg; cmp = cmp->pre)
+            for (sNode *cmp = End->pre; cmp != buffer->beg; cmp = cmp->pre)
             {
                 if (End->val < cmp->val)
                 {
@@ -420,8 +429,8 @@ String *bubbleSort(String *target)
 String *reverse(String *target)
 {
     String *buffer = cpyString(target);
-    Node *Begin = buffer->beg;
-    Node *End = buffer->end;
+    sNode *Begin = buffer->beg;
+    sNode *End = buffer->end;
     if (buffer->length % 2 == 0)
     {
         for (unsigned cnt = 0; cnt < buffer->length / 2; ++cnt)
@@ -450,7 +459,7 @@ String *reverse(String *target)
 int count(String *target, char c)
 {
     unsigned cnt = 0;
-    for (Node *iterator = target->beg; iterator != target->end->next; iterator = iterator->next)
+    for (sNode *iterator = target->beg; iterator != target->end->next; iterator = iterator->next)
     {
         if (iterator->val == c)
             ++cnt;

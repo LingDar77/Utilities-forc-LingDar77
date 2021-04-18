@@ -7,26 +7,26 @@
  * myString.h
  * my string implement in c 
  * Author: LingDar77
- * 4/16/2021
+ * 4/17/2021
  */
 
 //macro
-#define Node struct node
+#define sNode struct node_string
 #define String struct string
 
 //basic node struct for linked list
-Node
+sNode
 {
-    Node *pre;
-    Node *next;
+    sNode *pre;
+    sNode *next;
     char val;
 };
 
 //an implement of string by linked list
 String
 {
-    Node *beg;
-    Node *end;
+    sNode *beg;
+    sNode *end;
     int length;
 };
 
@@ -70,7 +70,7 @@ char *cStr(String *s);
 //get a char by an index
 const char getCharFromString(String *s, unsigned index);
 //sort a string
-//!NOT SAFE NOW, DO NOT USE!
+//!UNFINISHED, NOT SAFE, DO NOT USE!
 String *mergeSort(String *target);
 //sort a string and return a copy of sorted string
 String *bubbleSort(String *target);
