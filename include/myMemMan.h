@@ -14,17 +14,19 @@
 
 GLIST_WITH_NODE(void *, MemMan, mNode);
 
-
-
 //generally use helpful macro instead of this func
 void initMyMemMan(MemMan *man);
 //generally use helpful macro instead of this func
 void mTerminate(MemMan *man);
+//generally use helpful macro instead of this func
 const void *mMalloc(MemMan *man, unsigned space);
+//generally use helpful macro instead of this func
 const void *mRealloc(MemMan *man, unsigned space, unsigned size);
+//gc_thread, not use
 void *thread_gc();
-//helpful macro
-#define DECLEAR_MEM_MANAGER() MemMan __GENERATED_MEMMAN__;
+
+//helpful macros
+#define DECLEAR_MEM_MANAGER() static MemMan __GENERATED_MEMMAN__;
 #define GENERATE_MEM_MANAGER() initMyMemMan(&__GENERATED_MEMMAN__)
 #define MEMNAN_TERMINATE() mTerminate(&__GENERATED_MEMMAN__)
 #define Malloc(space) mMalloc(&__GENERATED_MEMMAN__, space)
