@@ -7,7 +7,7 @@ VsCode,
 CMake,
 GCC 9.2.0
 # Outline
-1.GList: a generic implement of linked list based on raw C\n
+1.GList: a generic implement of linked list based on raw C
 2.MemManager: a generic implement of some kind of gc based on GList and raw C
 
 
