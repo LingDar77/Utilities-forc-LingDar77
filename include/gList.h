@@ -5,7 +5,8 @@
 * Generic list implement in C
 * Author: LingDar77
 * Version: 0.0.1
-* 4/18/2021
+* Started: 4/18/2021
+* Modified: 4/19/2021
 */
 //#include <assert.h>
 #include <stdlib.h>
@@ -212,7 +213,10 @@
         ++target->reserve;                                                                               \
         return &iterator->val;                                                                           \
     }                                                                                                    \
-    /*find a element in a list, return a pointer to pair*/                                               \
+    /*                                                                                                   \
+    Find a element in a list, return a pointer to pair                                                   \
+    you can provide a method to compare , or NULL to use ==                                              \
+    */                                                                                                   \
     static const NodeName##_pair *Name##_FindElement(Name *target, Type Element, int (*cmp)(Type, Type)) \
     {                                                                                                    \
         NodeName *Forward = target->beg;                                                                 \
@@ -226,71 +230,142 @@
         }                                                                                                \
         if (target->len <= 2)                                                                            \
         {                                                                                                \
-            if ((*cmp)(Forward->val, Element))                                                           \
+            if (cmp != NULL)                                                                             \
             {                                                                                            \
-                buf = Forward;                                                                           \
-                cnt = 0;                                                                                 \
-            }                                                                                            \
-            else if ((*cmp)(Backward->val, Element))                                                     \
-            {                                                                                            \
-                buf = Backward;                                                                          \
-                cnt = target->len - 1;                                                                   \
-            }                                                                                            \
-        }                                                                                                \
-        else                                                                                             \
-        {                                                                                                \
-            if (target->len % 2 == 0)                                                                    \
-            {                                                                                            \
-                while (Forward->pre != Backward->next)                                                   \
+                if ((*cmp)(Forward->val, Element))                                                       \
                 {                                                                                        \
-                    if ((*cmp)(Forward->val, Element))                                                   \
-                    {                                                                                    \
-                        buf = Forward;                                                                   \
-                        break;                                                                           \
-                    }                                                                                    \
-                    if ((*cmp)(Backward->val, Element))                                                  \
-                    {                                                                                    \
-                        buf = Backward;                                                                  \
-                        cnt = target->len - cnt - 1;                                                     \
-                        break;                                                                           \
-                    }                                                                                    \
-                    ++cnt;                                                                               \
-                    Forward = Forward->next;                                                             \
-                    Backward = Backward->pre;                                                            \
+                    buf = Forward;                                                                       \
+                    cnt = 0;                                                                             \
+                }                                                                                        \
+                else if ((*cmp)(Backward->val, Element))                                                 \
+                {                                                                                        \
+                    buf = Backward;                                                                      \
+                    cnt = target->len - 1;                                                               \
                 }                                                                                        \
             }                                                                                            \
             else                                                                                         \
             {                                                                                            \
-                while (cnt <= target->len / 2)                                                           \
+                if (Forward->val == Element)                                                             \
                 {                                                                                        \
-                    if ((*cmp)(Forward->val, Element))                                                   \
-                    {                                                                                    \
-                        buf = Forward;                                                                   \
-                        break;                                                                           \
-                    }                                                                                    \
-                    if ((*cmp)(Backward->val, Element))                                                  \
-                    {                                                                                    \
-                        buf = Backward;                                                                  \
-                        cnt = target->len - cnt - 1;                                                     \
-                        break;                                                                           \
-                    }                                                                                    \
-                    ++cnt;                                                                               \
-                    Forward = Forward->next;                                                             \
-                    Backward = Backward->pre;                                                            \
+                    buf = Forward;                                                                       \
+                    cnt = 0;                                                                             \
+                }                                                                                        \
+                else if (Backward->val == Element)                                                       \
+                {                                                                                        \
+                    buf = Backward;                                                                      \
+                    cnt = target->len - 1;                                                               \
                 }                                                                                        \
             }                                                                                            \
         }                                                                                                \
-        if (buf)                                                                                         \
+        else                                                                                             \
         {                                                                                                \
-            NodeName##_pair *ret = malloc(sizeof(NodeName##_pair));                                      \
-            ret->Name##_Node = buf;                                                                      \
-            ret->Index = cnt;                                                                            \
-            return ret;                                                                                  \
+            unsigned iterator = 0;                                                                       \
+            if (target->len % 2 == 0)                                                                    \
+            {                                                                                            \
+                if (cmp != NULL)                                                                         \
+                {                                                                                        \
+                    while (iterator < target->len / 2)                                                   \
+                    {                                                                                    \
+                        if ((*cmp)(Forward->val, Element))                                               \
+                        {                                                                                \
+                            buf = Forward;                                                               \
+                            break;                                                                       \
+                        }                                                                                \
+                        if ((*cmp)(Backward->val, Element))                                              \
+                        {                                                                                \
+                            buf = Backward;                                                              \
+                            cnt = target->len - cnt - 1;                                                 \
+                            break;                                                                       \
+                        }                                                                                \
+                        ++cnt;                                                                           \
+                        Forward = Forward->next;                                                         \
+                        Backward = Backward->pre;                                                        \
+                    }                                                                                    \
+                }                                                                                        \
+                else                                                                                     \
+                {                                                                                        \
+                    while (iterator < target->len / 2)                                                   \
+                    {                                                                                    \
+                        if (Forward->val == Element)                                                     \
+                        {                                                                                \
+                            buf = Forward;                                                               \
+                            break;                                                                       \
+                        }                                                                                \
+                        if (Backward->val == Element)                                                    \
+                        {                                                                                \
+                            buf = Backward;                                                              \
+                            cnt = target->len - cnt - 1;                                                 \
+                            break;                                                                       \
+                        }                                                                                \
+                        ++cnt;                                                                           \
+                        Forward = Forward->next;                                                         \
+                        Backward = Backward->pre;                                                        \
+                    }                                                                                    \
+                }                                                                                        \
+            }                                                                                            \
+            else                                                                                         \
+            {                                                                                            \
+                if (cmp != NULL)                                                                         \
+                {                                                                                        \
+                    while (iterator < target->len / 2)                                                   \
+                    {                                                                                    \
+                        if ((*cmp)(Forward->val, Element))                                               \
+                        {                                                                                \
+                            buf = Forward;                                                               \
+                            break;                                                                       \
+                        }                                                                                \
+                        if ((*cmp)(Backward->val, Element))                                              \
+                        {                                                                                \
+                            buf = Backward;                                                              \
+                            cnt = target->len - cnt - 1;                                                 \
+                            break;                                                                       \
+                        }                                                                                \
+                        ++cnt;                                                                           \
+                        Forward = Forward->next;                                                         \
+                        Backward = Backward->pre;                                                        \
+                    }                                                                                    \
+                    if ((*cmp)(Forward->val, Element))                                                   \
+                    {                                                                                    \
+                        buf = Forward;                                                                   \
+                    }                                                                                    \
+                    else                                                                                 \
+                    {                                                                                    \
+                        while (iterator < target->len / 2)                                               \
+                        {                                                                                \
+                            if (Forward->val == Element)                                                 \
+                            {                                                                            \
+                                buf = Forward;                                                           \
+                                break;                                                                   \
+                            }                                                                            \
+                            if (Backward->val == Element)                                                \
+                            {                                                                            \
+                                buf = Backward;                                                          \
+                                cnt = target->len - cnt - 1;                                             \
+                                break;                                                                   \
+                            }                                                                            \
+                            ++cnt;                                                                       \
+                            Forward = Forward->next;                                                     \
+                            Backward = Backward->pre;                                                    \
+                        }                                                                                \
+                        if (Forward->val == Element)                                                     \
+                        {                                                                                \
+                            buf = Forward;                                                               \
+                        }                                                                                \
+                    }                                                                                    \
+                }                                                                                        \
+            }                                                                                            \
+            if (buf)                                                                                     \
+            {                                                                                            \
+                NodeName##_pair *ret = malloc(sizeof(NodeName##_pair));                                  \
+                ret->Name##_Node = buf;                                                                  \
+                ret->Index = cnt;                                                                        \
+                return ret;                                                                              \
+            }                                                                                            \
+            fprintf(stderr, "Error: No Such Element Found!\n");                                          \
+            abort();                                                                                     \
         }                                                                                                \
-        fprintf(stderr, "Error: No Such Element Found!\n");                                              \
-        abort();                                                                                         \
     }                                                                                                    \
-    /*Destory a list,you can provaide a func to deal with your data or just give a NULL*/                \
+    /*Destory a list,you can provide a func to deal with your data or just give a NULL*/                 \
     static void Name##_Destory(Name *target, void (*destructor)(Type *))                                 \
     {                                                                                                    \
         if (target->len <= 0 || target->reserve < 0)                                                     \
@@ -369,6 +444,84 @@
                     --target->reserve;                                                                   \
                 }                                                                                        \
             }                                                                                            \
+        }                                                                                                \
+    }                                                                                                    \
+    /*                                                                                                   \
+    Count how many times the given element appears in the list                                           \
+    you can provide a method to compare or NULL to use ==                                                \
+    */                                                                                                   \
+    static const unsigned Name##_Count(Name *target, Type value, int (*cmp)(Type, Type))                 \
+    {                                                                                                    \
+        if (target->len <= 0)                                                                            \
+        {                                                                                                \
+            fprintf(stderr, "Error: No Elements!\n");                                                    \
+            abort();                                                                                     \
+        }                                                                                                \
+        NodeName *Begin = target->beg, *End = target->end;                                               \
+        unsigned cnt = 0, iterator = 0;                                                                  \
+        if (target->len % 2 == 0)                                                                        \
+        {                                                                                                \
+            if (cmp != NULL)                                                                             \
+            {                                                                                            \
+                while (iterator < target->len / 2)                                                       \
+                {                                                                                        \
+                    if ((*cmp)(Begin->val, value))                                                       \
+                        ++cnt;                                                                           \
+                    if ((*cmp)(End->val, value))                                                         \
+                        ++cnt;                                                                           \
+                    Begin = Begin->next;                                                                 \
+                    End = End->pre;                                                                      \
+                    ++iterator;                                                                          \
+                }                                                                                        \
+            }                                                                                            \
+            else                                                                                         \
+            {                                                                                            \
+                while (iterator < target->len / 2)                                                       \
+                {                                                                                        \
+                    if (Begin->val == value)                                                             \
+                        ++cnt;                                                                           \
+                    if (End->val == value)                                                               \
+                        ++cnt;                                                                           \
+                    Begin = Begin->next;                                                                 \
+                    End = End->pre;                                                                      \
+                    ++iterator;                                                                          \
+                }                                                                                        \
+            }                                                                                            \
+            return cnt;                                                                                  \
+        }                                                                                                \
+        else                                                                                             \
+        {                                                                                                \
+            if (cmp != NULL)                                                                             \
+            {                                                                                            \
+                while (iterator < target->len / 2)                                                       \
+                {                                                                                        \
+                    if ((*cmp)(Begin->val, value))                                                       \
+                        ++cnt;                                                                           \
+                    if ((*cmp)(End->val, value))                                                         \
+                        ++cnt;                                                                           \
+                    Begin = Begin->next;                                                                 \
+                    End = End->pre;                                                                      \
+                    ++iterator;                                                                          \
+                }                                                                                        \
+                if ((*cmp)(Begin->val, value))                                                           \
+                    ++cnt;                                                                               \
+            }                                                                                            \
+            else                                                                                         \
+            {                                                                                            \
+                while (iterator < target->len / 2)                                                       \
+                {                                                                                        \
+                    if (Begin->val == value)                                                             \
+                        ++cnt;                                                                           \
+                    if (End->val == value)                                                               \
+                        ++cnt;                                                                           \
+                    Begin = Begin->next;                                                                 \
+                    End = End->pre;                                                                      \
+                    ++iterator;                                                                          \
+                }                                                                                        \
+                if (Begin->val == value)                                                                 \
+                    ++cnt;                                                                               \
+            }                                                                                            \
+            return cnt;                                                                                  \
         }                                                                                                \
     }
 

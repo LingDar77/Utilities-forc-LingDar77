@@ -22,13 +22,13 @@ void mTerminate(MemMan *man);
 const void *mMalloc(MemMan *man, unsigned space);
 //generally use helpful macro instead of this func
 const void *mRealloc(MemMan *man, unsigned space, unsigned size);
-//gc_thread, not use
+//gc_thread, do not use
 void *thread_gc();
 
 //helpful macros
 #define DECLEAR_MEM_MANAGER()           \
     static MemMan __GENERATED_MEMMAN__; \
-    static MemMan __GENERATED_GARBAGE__;
+    static MemMan __GENERATED_GARBAGE__
 #define GENERATE_MEM_MANAGER() initMyMemMan(&__GENERATED_MEMMAN__)
 #define MEMNAN_TERMINATE() mTerminate(&__GENERATED_MEMMAN__)
 #define Malloc(space) mMalloc(&__GENERATED_MEMMAN__, space)
