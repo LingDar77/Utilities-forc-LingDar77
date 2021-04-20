@@ -4,14 +4,15 @@
 /**
 * Generic list implement in C
 * Author: LingDar77
-* Version: 0.0.1
+* Version: 0.0.2
 * Started: 4/18/2021
-* Modified: 4/19/2021
-*/
+* Modified: 4/20/2021
+**/
+
 //#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <pthread.h>
 #define DECLEAR_GNode(Type, Name)  \
     typedef struct GNode_##Name    \
     {                              \
@@ -49,6 +50,13 @@
         NodeName *Name##_Node;                                                                           \
         unsigned Index;                                                                                  \
     } NodeName##_pair;                                                                                   \
+    /*Make a List, better use this to create a list*/                                                    \
+    static const Name *Name##_Maker()                                                                    \
+    {                                                                                                    \
+        Name *buffer = malloc(sizeof(Name));                                                             \
+        buffer->len = 0, buffer->reserve = 0, buffer->beg = NULL, buffer->end = NULL;                    \
+        return buffer;                                                                                   \
+    }                                                                                                    \
     /*Find an iterator by index*/                                                                        \
     static const NodeName *Name##_GetIteratorByIndex(Name *target, unsigned Index)                       \
     {                                                                                                    \
@@ -94,35 +102,171 @@
             }                                                                                            \
         }                                                                                                \
         return iterator;                                                                                 \
-    }                                                                                                    \
-    /*add an element at the end of a list*/                                                              \
-    static const Name *Name##_PushBack(Name *target, Type value)                                         \
+    } /*                                                                                                 \
+    Change the reserve of a list                                                                         \
+    when decreasing the reserve you can provide a deletor to deal with your data                         \
+    or just a NULL to jump over                                                                          \
+    */                                                                                                   \
+    static void Name##_Reserve(Name *target, unsigned num, void (*destructor)(Type *))                   \
     {                                                                                                    \
-        if (target->reserve <= 0)                                                                        \
+        if (target->len <= 0 || target->reserve < 0)                                                     \
         {                                                                                                \
-            if (target->reserve < 0)                                                                     \
-                target->reserve = 0;                                                                     \
+            fprintf(stderr, "Error: Invalid List!\n");                                                   \
+            abort();                                                                                     \
+        }                                                                                                \
+        if (num > target->reserve)                                                                       \
+        {                                                                                                \
+            while (num - target->reserve)                                                                \
+            {                                                                                            \
+                NodeName *buf = malloc(sizeof(NodeName));                                                \
+                if (target->reserve > 0)                                                                 \
+                {                                                                                        \
+                    NodeName *reserve = target->end->next;                                               \
+                    buf->next = reserve;                                                                 \
+                    buf->val = NULL;                                                                     \
+                    buf->pre = target->end;                                                              \
+                    reserve->pre = buf;                                                                  \
+                    target->end->next = buf;                                                             \
+                    ++target->reserve;                                                                   \
+                }                                                                                        \
+                else                                                                                     \
+                {                                                                                        \
+                    target->end->next = buf;                                                             \
+                    buf->pre = target->end;                                                              \
+                    buf->val = NULL;                                                                     \
+                    buf->next = NULL;                                                                    \
+                    ++target->reserve;                                                                   \
+                }                                                                                        \
+            }                                                                                            \
+        }                                                                                                \
+        else                                                                                             \
+        {                                                                                                \
+            while (target->reserve - num)                                                                \
+            {                                                                                            \
+                if (target->reserve == 1)                                                                \
+                {                                                                                        \
+                    NodeName *buf = target->end->next;                                                   \
+                    if (destructor != NULL)                                                              \
+                        (*destructor)(&buf->val);                                                        \
+                    free(buf);                                                                           \
+                    target->end->next = NULL;                                                            \
+                    --target->reserve;                                                                   \
+                }                                                                                        \
+                else                                                                                     \
+                {                                                                                        \
+                    NodeName *reserve = target->end->next;                                               \
+                    if (destructor != NULL)                                                              \
+                        (*destructor)(&reserve->val);                                                    \
+                    target->end->next = reserve->next;                                                   \
+                    reserve->next->pre = target->end;                                                    \
+                    free(reserve);                                                                       \
+                    --target->reserve;                                                                   \
+                }                                                                                        \
+            }                                                                                            \
+        }                                                                                                \
+    }                                                                                                    \
+    /*Add an element at the front of a list*/                                                            \
+    static const NodeName *Name##_PushFront(Name *target, Type value)                                    \
+    {                                                                                                    \
+        if (target->len < 0 || target->reserve < 0)                                                      \
+        {                                                                                                \
+            perror("Error: Uninitialized List!\n");                                                      \
+            abort();                                                                                     \
+        }                                                                                                \
+        if (target->reserve == 0)                                                                        \
+        {                                                                                                \
             NodeName *buffer = malloc(sizeof(NodeName));                                                 \
             if (buffer == NULL)                                                                          \
             {                                                                                            \
                 perror("Error: Malloc Failed!\n");                                                       \
                 abort();                                                                                 \
             }                                                                                            \
-            buffer->val = value;                                                                         \
-            buffer->next = NULL;                                                                         \
-            if (target->len <= 0)                                                                        \
+            if (target->beg == NULL)                                                                     \
             {                                                                                            \
+                buffer->pre = NULL;                                                                      \
+                buffer->next = NULL;                                                                     \
+                buffer->val = value;                                                                     \
                 target->beg = buffer;                                                                    \
                 target->end = buffer;                                                                    \
-                buffer->pre = NULL;                                                                      \
-                target->len = 1;                                                                         \
-                return target;                                                                           \
+                ++target->len;                                                                           \
+                return target->beg;                                                                      \
             }                                                                                            \
-            target->end->next = buffer;                                                                  \
-            buffer->pre = target->end;                                                                   \
-            target->end = buffer;                                                                        \
+            else if (target->beg != NULL && target->len > 0)                                             \
+            {                                                                                            \
+                buffer->pre = NULL;                                                                      \
+                buffer->next = target->beg;                                                              \
+                buffer->val = value;                                                                     \
+                target->beg->pre = buffer;                                                               \
+                target->beg = buffer;                                                                    \
+                ++target->len;                                                                           \
+                return target->beg;                                                                      \
+            }                                                                                            \
+            else                                                                                         \
+            {                                                                                            \
+                perror("Error: Undefined Case!\n");                                                      \
+                abort();                                                                                 \
+            }                                                                                            \
+        }                                                                                                \
+        else                                                                                             \
+        {                                                                                                \
+            NodeName *r0 = target->end->next;                                                            \
+            if (r0->next)                                                                                \
+                r0->next->pre = target->end;                                                             \
+            target->end->next = r0->next;                                                                \
+            if (target->beg == NULL)                                                                     \
+                r0->next = target->end;                                                                  \
+            else                                                                                         \
+                r0->next = target->beg;                                                                  \
+            r0->pre = NULL;                                                                              \
+            r0->val = value;                                                                             \
+            target->beg->pre = r0;                                                                       \
+            target->beg = r0;                                                                            \
             ++target->len;                                                                               \
-            return target;                                                                               \
+            --target->reserve;                                                                           \
+            return target->beg;                                                                          \
+        }                                                                                                \
+    }                                                                                                    \
+    /*Add an element at the end of a list*/                                                              \
+    static const NodeName *Name##_PushBack(Name *target, Type value)                                     \
+    {                                                                                                    \
+        if (target->len < 0 || target->reserve < 0)                                                      \
+        {                                                                                                \
+            perror("Error: Uninitialized List!\n");                                                      \
+            abort();                                                                                     \
+        }                                                                                                \
+        if (target->reserve == 0)                                                                        \
+        {                                                                                                \
+            NodeName *buffer = malloc(sizeof(NodeName));                                                 \
+            if (buffer == NULL)                                                                          \
+            {                                                                                            \
+                perror("Error: Malloc Failed!\n");                                                       \
+                abort();                                                                                 \
+            }                                                                                            \
+            if (target->end == NULL)                                                                     \
+            {                                                                                            \
+                buffer->pre = NULL;                                                                      \
+                buffer->next = NULL;                                                                     \
+                buffer->val = value;                                                                     \
+                target->beg = buffer;                                                                    \
+                target->end = buffer;                                                                    \
+                ++target->len;                                                                           \
+                return target->end;                                                                      \
+            }                                                                                            \
+            else if (target->end != NULL && target->len > 0)                                             \
+            {                                                                                            \
+                buffer->next = NULL;                                                                     \
+                buffer->pre = target->end;                                                               \
+                buffer->val = value;                                                                     \
+                target->end->next = buffer;                                                              \
+                target->end = buffer;                                                                    \
+                ++target->len;                                                                           \
+                return target->end;                                                                      \
+            }                                                                                            \
+            else                                                                                         \
+            {                                                                                            \
+                perror("Error: Undefined Case!\n");                                                      \
+                abort();                                                                                 \
+            }                                                                                            \
         }                                                                                                \
         else                                                                                             \
         {                                                                                                \
@@ -130,10 +274,37 @@
             target->end->val = value;                                                                    \
             ++target->len;                                                                               \
             --target->reserve;                                                                           \
-            return target;                                                                               \
+            return target->end;                                                                          \
         }                                                                                                \
     }                                                                                                    \
-    /*Pop the last one element*/                                                                         \
+    /*Pop the first on element*/                                                                         \
+    static const Type *Name##_PopFront(Name *target)                                                     \
+    {                                                                                                    \
+        if (target->len <= 0 || target->reserve < 0)                                                     \
+        {                                                                                                \
+            fprintf(stderr, "Error: Invalid List!\n");                                                   \
+            abort();                                                                                     \
+        }                                                                                                \
+        if (target->beg == target->end)                                                                  \
+        {                                                                                                \
+            fprintf(stderr, "Error: Can Not Pop The Only One Element!\n");                               \
+            abort();                                                                                     \
+        }                                                                                                \
+        else                                                                                             \
+        {                                                                                                \
+            NodeName *reserve = target->beg;                                                             \
+            target->beg = target->beg->next;                                                             \
+            target->beg->pre = NULL;                                                                     \
+            --target->len;                                                                               \
+            ++target->reserve;                                                                           \
+            reserve->next = target->end->next;                                                           \
+            reserve->pre = target->end;                                                                  \
+            target->end->next = reserve;                                                                 \
+            if (target->end->next)                                                                       \
+                target->end->next->pre = reserve;                                                        \
+        }                                                                                                \
+    }                                                                                                    \
+    /*Pop the last one but not the only one element*/                                                    \
     static const Type *Name##_PopBack(Name *target)                                                      \
     {                                                                                                    \
         if (target->len <= 0 || target->reserve < 0)                                                     \
@@ -141,10 +312,62 @@
             fprintf(stderr, "Error: Invalid List!\n");                                                   \
             abort();                                                                                     \
         }                                                                                                \
-        ++target->reserve;                                                                               \
-        target->end = target->end->pre;                                                                  \
-        --target->len;                                                                                   \
-        return &target->end->next->val;                                                                  \
+        if (target->end == target->beg)                                                                  \
+        {                                                                                                \
+            fprintf(stderr, "Error: Can Not Pop The Only One Element!\n");                               \
+            abort();                                                                                     \
+        }                                                                                                \
+        else                                                                                             \
+        {                                                                                                \
+            target->end = target->end->pre;                                                              \
+            --target->len;                                                                               \
+            ++target->reserve;                                                                           \
+            return target->end->next->val;                                                               \
+        }                                                                                                \
+    }                                                                                                    \
+    /*Insert an element at the back of element of a certain index*/                                      \
+    static const Name *Name##_InsertFront(Name *target, Type value, unsigned Index)                      \
+    {                                                                                                    \
+        if (target->len <= 0 || target->reserve < 0)                                                     \
+        {                                                                                                \
+            fprintf(stderr, "Error: Invalid List!\n");                                                   \
+            abort();                                                                                     \
+        }                                                                                                \
+        if (Index == 0 || target->len == 1)                                                              \
+        {                                                                                                \
+            return (Name##_PushFront(target, value));                                                    \
+        }                                                                                                \
+        if (target->reserve == 0)                                                                        \
+        {                                                                                                \
+            NodeName *iterator = Name##_GetIteratorByIndex(target, Index);                               \
+            NodeName *buf = malloc(sizeof(NodeName));                                                    \
+            NodeName *Pre = iterator->pre;                                                               \
+            ++target->len;                                                                               \
+            Pre->next = buf;                                                                             \
+            buf->pre = Pre;                                                                              \
+            buf->val = value;                                                                            \
+            buf->next = iterator;                                                                        \
+            iterator->pre = buf;                                                                         \
+            return target;                                                                               \
+        }                                                                                                \
+        else                                                                                             \
+        {                                                                                                \
+            NodeName *reserve = target->end->next;                                                       \
+            NodeName *iterator = Name##_GetIteratorByIndex(target, Index);                               \
+            NodeName *Pre = iterator->pre;                                                               \
+            target->end->next = reserve->next;                                                           \
+            if (reserve->next != NULL)                                                                   \
+                reserve->next->pre = target->end;                                                        \
+            reserve->val = value;                                                                        \
+            ++target->len;                                                                               \
+            --target->reserve;                                                                           \
+            Pre->next = reserve;                                                                         \
+            reserve->pre = Pre;                                                                          \
+            reserve->val = value;                                                                        \
+            reserve->next = iterator;                                                                    \
+            iterator->pre = reserve;                                                                     \
+            return target;                                                                               \
+        }                                                                                                \
     }                                                                                                    \
     /*Insert an element at the back of element of a certain index*/                                      \
     static const Name *Name##_InsertBack(Name *target, Type value, unsigned Index)                       \
@@ -173,22 +396,25 @@
         }                                                                                                \
         else                                                                                             \
         {                                                                                                \
-            NodeName *buf = target->end->next;                                                           \
+            NodeName *reserve = target->end->next;                                                       \
             NodeName *iterator = Name##_GetIteratorByIndex(target, Index);                               \
-            if (target->reserve > 1)                                                                     \
-            {                                                                                            \
-                target->end->next = buf->next;                                                           \
-                buf->next->pre = target->end;                                                            \
-                buf->next = iterator->next;                                                              \
-                buf->pre = iterator;                                                                     \
-                buf->val = value;                                                                        \
-                --target->reserve;                                                                       \
-                ++target->len;                                                                           \
-                return target;                                                                           \
-            }                                                                                            \
+                                                                                                         \
+            target->end->next = reserve->next;                                                           \
+            if (reserve->next != NULL)                                                                   \
+                reserve->next->pre = target->end;                                                        \
+            reserve->next = iterator->next;                                                              \
+            reserve->pre = iterator;                                                                     \
+            reserve->val = value;                                                                        \
+            --target->reserve;                                                                           \
+            ++target->len;                                                                               \
+            return target;                                                                               \
         }                                                                                                \
     }                                                                                                    \
-    /*Remove an element from a list at certain index*/                                                   \
+    /*                                                                                                   \
+    Remove an element from a list at certain index                                                       \
+    You Need To Be Cautious to Remove The Last One Element                                               \
+    This Behavior Will Clear All The Elements And Reserves In A Rude Way                                 \
+    */                                                                                                   \
     static const Type *Name##_Remove(Name *target, unsigned Index)                                       \
     {                                                                                                    \
         if (target->len <= 0 || target->reserve < 0)                                                     \
@@ -198,7 +424,16 @@
         }                                                                                                \
         if (Index == target->len - 1 || target->len == 1)                                                \
         {                                                                                                \
-            return (Name##_PopBack(target));                                                             \
+            Name##_Reserve(target, 0, NULL);                                                             \
+            free(target->beg);                                                                           \
+            target->end = NULL;                                                                          \
+            target->beg = NULL;                                                                          \
+            target->len = 0;                                                                             \
+            return NULL;                                                                                 \
+        }                                                                                                \
+        if (Index == 0 && target->len > 1)                                                               \
+        {                                                                                                \
+            return (Name##_PopFront(target));                                                            \
         }                                                                                                \
         NodeName *iterator = Name##_GetIteratorByIndex(target, Index);                                   \
         NodeName *Pre = iterator->pre;                                                                   \
@@ -280,6 +515,7 @@
                         ++cnt;                                                                           \
                         Forward = Forward->next;                                                         \
                         Backward = Backward->pre;                                                        \
+                        ++iterator;                                                                      \
                     }                                                                                    \
                 }                                                                                        \
                 else                                                                                     \
@@ -300,6 +536,7 @@
                         ++cnt;                                                                           \
                         Forward = Forward->next;                                                         \
                         Backward = Backward->pre;                                                        \
+                        ++iterator;                                                                      \
                     }                                                                                    \
                 }                                                                                        \
             }                                                                                            \
@@ -323,6 +560,7 @@
                         ++cnt;                                                                           \
                         Forward = Forward->next;                                                         \
                         Backward = Backward->pre;                                                        \
+                        ++iterator;                                                                      \
                     }                                                                                    \
                     if ((*cmp)(Forward->val, Element))                                                   \
                     {                                                                                    \
@@ -346,6 +584,7 @@
                             ++cnt;                                                                       \
                             Forward = Forward->next;                                                     \
                             Backward = Backward->pre;                                                    \
+                            ++iterator;                                                                  \
                         }                                                                                \
                         if (Forward->val == Element)                                                     \
                         {                                                                                \
@@ -365,85 +604,80 @@
             abort();                                                                                     \
         }                                                                                                \
     }                                                                                                    \
+    /*The Generated Free-Thread*/                                                                        \
+    static void *GENERATED_FREE_THREAD(void *p)                                                          \
+    {                                                                                                    \
+        pthread_detach(pthread_self);                                                                    \
+        /*static int cnt = 0;*/                                                                          \
+        if (p == NULL)                                                                                   \
+            printf("Invald ptr\n");                                                                      \
+        free(p);                                                                                         \
+        /*printf("free called %d times\n", cnt++);*/                                                     \
+        pthread_exit(NULL);                                                                              \
+        return NULL;                                                                                     \
+    } /*Fast destory a list, may use more resource*/                                                     \
+    static void Name##_Destory_f(Name *target, void (*destructor_thread)(Type *))                        \
+    {                                                                                                    \
+        if (target->len <= 0 && target->reserve <= 0)                                                    \
+        {                                                                                                \
+            fprintf(stderr, "Error: Invalid List!\n");                                                   \
+            abort();                                                                                     \
+        }                                                                                                \
+        if (target->end)                                                                                 \
+        {                                                                                                \
+        }                                                                                                \
+        else                                                                                             \
+        {                                                                                                \
+            fprintf(stderr, "Error: Invalid List!\n");                                                   \
+            abort();                                                                                     \
+        }                                                                                                \
+    }                                                                                                    \
     /*Destory a list,you can provide a func to deal with your data or just give a NULL*/                 \
     static void Name##_Destory(Name *target, void (*destructor)(Type *))                                 \
     {                                                                                                    \
-        if (target->len <= 0 || target->reserve < 0)                                                     \
+        if (target->len <= 0 && target->reserve <= 0)                                                    \
         {                                                                                                \
             fprintf(stderr, "Error: Invalid List!\n");                                                   \
             abort();                                                                                     \
         }                                                                                                \
         NodeName *iterator = target->beg;                                                                \
-        while (iterator != NULL)                                                                         \
+        pthread_t pt[target->len + target->reserve];                                                     \
+        unsigned cnt = 0;                                                                                \
+        if (iterator != NULL)                                                                            \
         {                                                                                                \
-            NodeName *buf = iterator->next;                                                              \
-            if (destructor != NULL)                                                                      \
-                (*destructor)(&iterator->val);                                                           \
-            free(iterator);                                                                              \
-            iterator = buf;                                                                              \
-        }                                                                                                \
-    }                                                                                                    \
-    /*                                                                                                   \
-    Change the reserve of a list                                                                         \
-    when decreasing the reserve you can provide a deletor to deal with your data                         \
-    or just a NULL to jump over                                                                          \
-    */                                                                                                   \
-    static void Name##_Reserve(Name *target, unsigned num, void (*destructor)(Type *))                   \
-    {                                                                                                    \
-        if (target->len <= 0 || target->reserve < 0)                                                     \
-        {                                                                                                \
-            fprintf(stderr, "Error: Invalid List!\n");                                                   \
-            abort();                                                                                     \
-        }                                                                                                \
-        if (num > target->reserve)                                                                       \
-        {                                                                                                \
-            while (num - target->reserve)                                                                \
+            while (iterator != NULL)                                                                     \
             {                                                                                            \
-                NodeName *buf = malloc(sizeof(NodeName));                                                \
-                if (target->reserve > 0)                                                                 \
+                NodeName *buf = iterator->next;                                                          \
+                if (destructor != NULL)                                                                  \
                 {                                                                                        \
-                    NodeName *reserve = target->end->next;                                               \
-                    buf->next = reserve;                                                                 \
-                    buf->val = NULL;                                                                     \
-                    buf->pre = target->end;                                                              \
-                    reserve->pre = buf;                                                                  \
-                    target->end->next = buf;                                                             \
-                    ++target->reserve;                                                                   \
+                    pthread_t pts[target->len + target->reserve];                                        \
+                    pthread_create(&pts[cnt], NULL, destructor, &iterator->val);                         \
+                    /*pthread_detach(pts[cnt]);*/                                                        \
                 }                                                                                        \
-                else                                                                                     \
+                pthread_create(&pt[cnt], NULL, &GENERATED_FREE_THREAD, iterator);                        \
+                iterator = buf;                                                                          \
+            }                                                                                            \
+        }                                                                                                \
+        else if (target->end != NULL)                                                                    \
+        {                                                                                                \
+            iterator = target->end;                                                                      \
+            while (iterator != NULL)                                                                     \
+            {                                                                                            \
+                NodeName *buf = iterator->pre;                                                           \
+                if (destructor != NULL)                                                                  \
                 {                                                                                        \
-                    target->end->next = buf;                                                             \
-                    buf->pre = target->end;                                                              \
-                    buf->val = NULL;                                                                     \
-                    buf->next = NULL;                                                                    \
-                    ++target->reserve;                                                                   \
+                    pthread_t pts[target->len + target->reserve];                                        \
+                    pthread_create(&pts[cnt], NULL, destructor, &iterator->val);                         \
+                    /*pthread_detach(pts[cnt]);*/                                                        \
                 }                                                                                        \
+                pthread_create(&pt[cnt], NULL, &GENERATED_FREE_THREAD, iterator);                        \
+                iterator = buf;                                                                          \
             }                                                                                            \
         }                                                                                                \
         else                                                                                             \
         {                                                                                                \
-            while (target->reserve - num)                                                                \
-            {                                                                                            \
-                if (target->reserve == 1)                                                                \
-                {                                                                                        \
-                    NodeName *buf = target->end->next;                                                   \
-                    if (destructor != NULL)                                                              \
-                        (*destructor)(&buf->val);                                                        \
-                    free(buf);                                                                           \
-                    target->end->next = NULL;                                                            \
-                    --target->reserve;                                                                   \
-                }                                                                                        \
-                else                                                                                     \
-                {                                                                                        \
-                    NodeName *reserve = target->end->next;                                               \
-                    if (destructor != NULL)                                                              \
-                        (*destructor)(&reserve->val);                                                    \
-                    target->end->next = reserve->next;                                                   \
-                    reserve->next->pre = target->end;                                                    \
-                    free(reserve);                                                                       \
-                    --target->reserve;                                                                   \
-                }                                                                                        \
-            }                                                                                            \
+            fprintf(stderr, "Error: Invalid List!\n");                                                   \
+            abort();                                                                                     \
         }                                                                                                \
     }                                                                                                    \
     /*                                                                                                   \
