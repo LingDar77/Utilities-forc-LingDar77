@@ -611,28 +611,94 @@
         /*static int cnt = 0;*/                                                                          \
         if (p == NULL)                                                                                   \
             printf("Invald ptr\n");                                                                      \
-        free(p);                                                                                         \
+        else                                                                                             \
+            free(p);                                                                                     \
         /*printf("free called %d times\n", cnt++);*/                                                     \
         pthread_exit(NULL);                                                                              \
         return NULL;                                                                                     \
-    } /*Fast destory a list, may use more resource*/                                                     \
-    static void Name##_Destory_f(Name *target, void (*destructor_thread)(Type *))                        \
+    } /*Thread Version Of Destory, Currently Slower Than Destory, I Do Not Know Why*/                    \
+    static void Name##_Destory_Threads(Name *target, void (*destructor_thread)(Type *))                  \
     {                                                                                                    \
         if (target->len <= 0 && target->reserve <= 0)                                                    \
         {                                                                                                \
             fprintf(stderr, "Error: Invalid List!\n");                                                   \
             abort();                                                                                     \
         }                                                                                                \
-        if (target->end)                                                                                 \
+        if (target->end == target->beg)                                                                  \
         {                                                                                                \
+            NodeName *Reserve = target->end->next;                                                       \
+            if (destructor_thread != NULL)                                                               \
+            {                                                                                            \
+                pthread_t pt1;                                                                           \
+                pthread_create(&pt1, NULL, destructor_thread, &target->end->val);                        \
+            }                                                                                            \
+            pthread_t ptn;                                                                               \
+            pthread_create(&ptn, NULL, &GENERATED_FREE_THREAD, target->end);                             \
+                                                                                                         \
+            pthread_t pts[target->reserve], pt2[target->reserve];                                        \
+            unsigned cnt = 0;                                                                            \
+            for (; Reserve; ++cnt)                                                                       \
+            {                                                                                            \
+                NodeName *buf1 = Reserve->next;                                                          \
+                if (destructor_thread != NULL)                                                           \
+                {                                                                                        \
+                    pthread_create(&pt2[cnt], NULL, destructor_thread, &Reserve->val);                   \
+                }                                                                                        \
+                pthread_create(&pts[cnt], NULL, &GENERATED_FREE_THREAD, Reserve);                        \
+                Reserve = buf1;                                                                          \
+            }                                                                                            \
+            free(target);                                                                                \
         }                                                                                                \
+        else if (target->end && target->beg)                                                             \
+        {                                                                                                \
+            NodeName *Beg = target->beg, *End = target->end, *Reserve = End->next;                       \
+            unsigned cnt = 0;                                                                            \
+            pthread_t pt1[target->len], ptn[target->len], pt2[target->reserve], pts[target->reserve];    \
+            for (; cnt * 2 <= target->len || Reserve != NULL; ++cnt)                                     \
+            {                                                                                            \
+                NodeName *buf1 = Beg->next, *buf2 = End->pre;                                            \
+                if (cnt * 2 < target->len)                                                               \
+                {                                                                                        \
+                    if (destructor_thread != NULL)                                                       \
+                    {                                                                                    \
+                        pthread_create(&pt1[cnt * 2], NULL, destructor_thread, &End->val);               \
+                        pthread_create(&pt1[cnt * 2 + 1], NULL, destructor_thread, &Beg->val);           \
+                    }                                                                                    \
+                    pthread_create(&ptn[cnt * 2], NULL, &GENERATED_FREE_THREAD, Beg);                    \
+                    pthread_create(&ptn[cnt * 2 + 1], NULL, &GENERATED_FREE_THREAD, End);                \
+                    Beg = buf1;                                                                          \
+                    End = buf2;                                                                          \
+                }                                                                                        \
+                else if (cnt == target->len / 2 && target->len % 2 == 1)                                 \
+                {                                                                                        \
+                    if (destructor_thread != NULL)                                                       \
+                    {                                                                                    \
+                        pthread_create(&pt1[cnt], NULL, destructor_thread, &End->val);                   \
+                    }                                                                                    \
+                    pthread_create(&ptn[cnt], NULL, &GENERATED_FREE_THREAD, Beg);                        \
+                }                                                                                        \
+                if (Reserve)                                                                             \
+                {                                                                                        \
+                    NodeName *buf1 = Reserve->next;                                                      \
+                                                                                                         \
+                    if (destructor_thread != NULL)                                                       \
+                    {                                                                                    \
+                        pthread_create(&pt2[cnt], NULL, destructor_thread, &Reserve->val);               \
+                    }                                                                                    \
+                    pthread_create(&pts[cnt], NULL, &GENERATED_FREE_THREAD, Reserve);                    \
+                    Reserve = buf1;                                                                      \
+                }                                                                                        \
+            }                                                                                            \
+            free(target);                                                                                \
+        }                                                                                                \
+                                                                                                         \
         else                                                                                             \
         {                                                                                                \
             fprintf(stderr, "Error: Invalid List!\n");                                                   \
             abort();                                                                                     \
         }                                                                                                \
     }                                                                                                    \
-    /*Destory a list,you can provide a func to deal with your data or just give a NULL*/                 \
+    /*Destory a list, you can provide a func to deal with your data or just give a NULL*/                 \
     static void Name##_Destory(Name *target, void (*destructor)(Type *))                                 \
     {                                                                                                    \
         if (target->len <= 0 && target->reserve <= 0)                                                    \
@@ -640,40 +706,68 @@
             fprintf(stderr, "Error: Invalid List!\n");                                                   \
             abort();                                                                                     \
         }                                                                                                \
-        NodeName *iterator = target->beg;                                                                \
-        pthread_t pt[target->len + target->reserve];                                                     \
-        unsigned cnt = 0;                                                                                \
-        if (iterator != NULL)                                                                            \
+        if (target->end == target->beg)                                                                  \
         {                                                                                                \
-            while (iterator != NULL)                                                                     \
+            NodeName *Reserve = target->end->next;                                                       \
+            if (destructor != NULL)                                                                      \
             {                                                                                            \
-                NodeName *buf = iterator->next;                                                          \
+                (*destructor)(&target->end->val);                                                        \
+            }                                                                                            \
+            free(target->end);                                                                           \
+            while (Reserve)                                                                              \
+            {                                                                                            \
+                NodeName *buf1 = Reserve->next;                                                          \
                 if (destructor != NULL)                                                                  \
                 {                                                                                        \
-                    pthread_t pts[target->len + target->reserve];                                        \
-                    pthread_create(&pts[cnt], NULL, destructor, &iterator->val);                         \
-                    /*pthread_detach(pts[cnt]);*/                                                        \
+                    (*destructor)(&Reserve->val);                                                        \
                 }                                                                                        \
-                pthread_create(&pt[cnt], NULL, &GENERATED_FREE_THREAD, iterator);                        \
-                iterator = buf;                                                                          \
+                free(Reserve);                                                                           \
+                Reserve = buf1;                                                                          \
             }                                                                                            \
+            free(target);                                                                                \
         }                                                                                                \
-        else if (target->end != NULL)                                                                    \
+        else if (target->end && target->beg)                                                             \
         {                                                                                                \
-            iterator = target->end;                                                                      \
-            while (iterator != NULL)                                                                     \
+            NodeName *Beg = target->beg, *End = target->end, *Reserve = End->next;                       \
+            unsigned cnt = 0;                                                                            \
+            for (; cnt <= target->len / 2 || Reserve != NULL; ++cnt)                                     \
             {                                                                                            \
-                NodeName *buf = iterator->pre;                                                           \
-                if (destructor != NULL)                                                                  \
+                NodeName *buf1 = Beg->next, *buf2 = End->pre;                                            \
+                if (cnt < target->len / 2)                                                               \
                 {                                                                                        \
-                    pthread_t pts[target->len + target->reserve];                                        \
-                    pthread_create(&pts[cnt], NULL, destructor, &iterator->val);                         \
-                    /*pthread_detach(pts[cnt]);*/                                                        \
+                    if (destructor != NULL)                                                              \
+                    {                                                                                    \
+                        (*destructor)(&Beg->val);                                                        \
+                        (*destructor)(&End->val);                                                        \
+                    }                                                                                    \
+                    free(Beg);                                                                           \
+                    free(End);                                                                           \
+                    Beg = buf1;                                                                          \
+                    End = buf2;                                                                          \
                 }                                                                                        \
-                pthread_create(&pt[cnt], NULL, &GENERATED_FREE_THREAD, iterator);                        \
-                iterator = buf;                                                                          \
+                else if (cnt == target->len / 2 && target->len % 2 == 1)                                 \
+                {                                                                                        \
+                    if (destructor != NULL)                                                              \
+                    {                                                                                    \
+                        (*destructor)(&End->val);                                                        \
+                    }                                                                                    \
+                    free(End);                                                                           \
+                }                                                                                        \
+                if (Reserve)                                                                             \
+                {                                                                                        \
+                    NodeName *buf1 = Reserve->next;                                                      \
+                                                                                                         \
+                    if (destructor != NULL)                                                              \
+                    {                                                                                    \
+                        (*destructor)(&Reserve->val);                                                    \
+                    }                                                                                    \
+                    free(Reserve);                                                                       \
+                    Reserve = buf1;                                                                      \
+                }                                                                                        \
             }                                                                                            \
+            free(target);                                                                                \
         }                                                                                                \
+                                                                                                         \
         else                                                                                             \
         {                                                                                                \
             fprintf(stderr, "Error: Invalid List!\n");                                                   \
